@@ -1,0 +1,2090 @@
+{UTF-8}
+targeted brine conc capacity=IF THEN ELSE(Observe Continuous Demand Growth>time to observe\
+		, MAX ( desired production , 0 )  *MINING CAPA BUFFER FACTOR
+	*TIME TO BUILD MINING CAPA
+	/per year, Direct Extraction Capacity
+	)
+	~	ton/Year
+	~		|
+
+targeted brine processing capacity=IF THEN ELSE (Observe Continuous Demand Growth>time to observe\
+		,MAX ( desired production , 0 )
+	*REFINING CAPA BUFFER
+	* TIME TO BUILD REFIN CAPA
+	/per year,Brine Processing Capacity
+	)
+	~	ton/Year
+	~	IF THEN ELSE (Overcapacity Brine Conversion Count>=2,REFINING CAPA \
+		BUFFER*(Brine Processing Capacity+Brine Processing Capacity*demand growth \
+		rate*TIME TO BUILD REFIN CAPA/per year),Brine Processing Capacity)
+	|
+
+processed orders=adjusted supply
+	~	ton/yr
+	~	MIN(desired production,total supply)
+	|
+
+backlog pressure=Backlog/desired backlog
+	~	dmnl
+	~		|
+
+effective scenario=EV30 SCENARIO(Time/one year)
+	~	ton/yr
+	~		|
+
+potential brine supply curve=Brine Processing Capacity*((Price/dollarperton))/10000
+	~	ton/Year
+	~	Roskill, Li outlook to 2028, Fig 9, cost surve in 2019 by production type
+	|
+
+tentative brine extraction quantity evap method=MIN ( potential brine supply curve , \
+		total conc capacity ) /CONVERSION RECOVERY RATE/CONC RECOVERY RATE
+	~	ton/Year
+	~	potential brine supply curve/CONVERSION RECOVERY RATE
+	|
+
+time to observe=2
+	~	 [1,5]
+	~		|
+
+multi=EFFECT BACKLOG ON PRICEW(backlog pressure)
+	~	dmnl
+	~		|
+
+potential ore supply curve=Processing Capacity*((Price/dollarperton))/10000
+	~	ton/Year
+	~	([(4,0)-(44,400)],(4,20),(8,25),(12,40),(16,80),(20,125),(24,225),(28,235),(32,240),(\
+		36,275),(40,280),(44,300) )
+		 20,25,40,80,125,225,235,240,275,280,300,310,325,350,375,380
+	|
+
+demand growth rate=
+	(posted demand-adjusted demand)/adjusted demand
+	~	dmnl
+	~	ABS(Demand-demand year before)/demand year before
+	|
+
+brine process capacity to add=
+	MAX((targeted brine processing capacity-Brine Processing Capacity)/TIME TO BUILD REFIN CAPA\
+		, 0)
+	~	ton/(Year*yr)
+	~		|
+
+adjusted demand=
+	adjusted demand based on supply*(effect price demand)
+	~	ton/yr
+	~	MAX(0,Demand*(Price/price year before)^DEMAND ELASTICITY)
+	|
+
+adjusted demand based on supply=
+	IF THEN ELSE(supply demand ratio<1,total theoretical Li demand, total theoretical Li demand\
+		*supply demand ratio)
+	~	ton/yr
+	~		|
+
+order proc time comparison=
+	(actual backlog time-TIME TO AVERAGE ORDERS)/TIME TO AVERAGE ORDERS
+	~	dmnl
+	~		|
+
+targeted mining capacity 0=
+	IF THEN ELSE (Observe Continuous Demand Growth>2,MINING CAPA BUFFER FACTOR*Concentrate Capacity\
+		*TIME TO BUILD MINING CAPA
+	/per year,Concentrate Capacity)
+	~	ton/Year
+	~	IF THEN ELSE (Concentrate Overcapacity Counting>=2,MINING CAPA BUFFER \
+		FACTOR*(Concentrate Capacity+Concentrate Capacity*demand growth rate*TIME \
+		TO BUILD MINING CAPA/per year),Concentrate Capacity)
+	|
+
+targeted process capacity=
+	IF THEN ELSE (Observe Continuous Demand Growth>2,Processing Capacity*REFINING CAPA BUFFER\
+		 ,Processing Capacity)
+	~	ton/Year
+	~	IF THEN ELSE (Overcapacity Conversion Count>=2,REFINING CAPA BUFFER*(Processing \
+		Capacity+Processing Capacity*demand growth rate
+		*TIME TO BUILD REFIN CAPA
+		/per year),Processing Capacity)
+	|
+
+supply demand ratio=
+	total supply/posted demand
+	~	dmnl
+	~		|
+
+direct extraction=
+	tentative brine extraction quantity evap method*(1-evap capacity share)
+	~	ton/Year
+	~		|
+
+Net Flow=
+	annual profit-actual capex/TIME STEP
+	~	$/Year
+	~		|
+
+rock mining=
+	MIN(tentative mining quantity,Concentrate Capacity)
+	~	ton/Year
+	~	MIN(tentative mining quantity,Concentrate Capacity/PHYSICAL RECOVERY RATE)
+	|
+
+counting 2=
+	IF THEN ELSE(supply demand ratio < 1,1,0)
+	~	1/yr
+	~		|
+
+posted demand= DELAY FIXED (
+	adjusted demand, TIME TO ADJUST PRICE, total theoretical Li demand)
+	~	ton/yr
+	~		|
+
+new orders=
+	posted demand
+	~	ton/yr
+	~		|
+
+"start new investment?"=
+	IF THEN ELSE( Time <2020, 0, IF THEN ELSE( Time= 2020, 1, IF THEN ELSE( Net Flow>=0 \
+		:AND: Time > Year of New Investment
+	 :AND:ave li amount extracted per yr >=Installed Geo Li Concentrating Capa
+	, 1, 0)))
+	~	dmnl
+	~		|
+
+adjusted supply=
+	total supply
+	~	ton/yr
+	~	+RAMP(80000, 2010 , 2012)-RAMP(80000, 2013 , 2015)
+	|
+
+Concentrate Inventory= INTEG (
+	processed ore-to refinery,
+		2000)
+	~	ton
+	~	processed ore*per year
+		43000 - 2010
+	|
+
+Li in Evap Pond= INTEG (
+	brine extraction-li concentrate-li lost in evap process,
+		100000)
+	~	ton
+	~	brine extraction*per year
+		230000 - 2010
+	|
+
+Concentrate at Conversion= INTEG (
+	to refinery-Li to be refined,
+		2000
+		)
+	~	ton
+	~	to refinery*per year
+		39000 - 2010
+	|
+
+chg in price=
+	(new price-Price)/TIME TO ADJUST PRICE
+	~	$/(yr*ton)
+	~		|
+
+new price=
+	Price*multi
+	~	$/ton
+	~	Price*((total supply/posted demand)^(1/DEMAND ELASTICITY))
+		Price*((posted demand/total supply)^(1/DMD ELASTICITY))
+	|
+
+Refined Li Inventory= INTEG (
+	refining-li from ore,
+		refining*per year)
+	~	ton
+	~	refining*per year
+		42000 - 2010
+	|
+
+Hydroxide or Carbonate Inventory= INTEG (
+	converted lithium-brine li to be sold,
+		10000)
+	~	ton
+	~	100000 converted lithium*per year - 
+		60000 from 2010
+	|
+
+LI SUPPLY TABLE(
+	[(2000,0)-(8500,1)],(2000,0),(2200,0),(2300,0.34),(3000,0.57),(3500,0.77),(3800,0.8)\
+		,(4600,0.85),(6200,0.97),(8500,1))
+	~	dmnl
+	~	rOSKILL - cOST SURVE 2013
+	|
+
+EFFECT BACKLOG ON PRICEW([(-1,0)-(10,3)],(-10,0.9), (0,0.9), (1,1), (2,1.1), (10,1.5)\
+		)
+	~	dmnl
+	~	[(0,0)-(10,10)],(0.1,3),(0.3,2),(0.5,1.5),(1,1)
+	|
+
+"Table for Capex/ConvCap Module"([(0,0)-(3e+06,10)],(0,0), (500000,1), (750000,1.1), \
+		(1e+06,1.2), (1.25e+06,1.3), (1.5e+06,1.4), (1.75e+06,1.5), (2e+06,1.6), (2.225e+06\
+		,1.7), (2.5e+06,1.8), (2.75e+06,1.9), (3e+06,2), (3e+07,20))
+	~	dmnl
+	~		|
+
+Conversion Cap per dollar="Table for Capex/ConvCap Module"(actual capex/dollar )
+	~	dmnl
+	~		|
+
+"Table for Capex/ConcCap Module"([(0,0)-(3e+06,10)],(0,0), (500000,1), (750000,1.2), \
+		(1e+06,1.4), (1.25e+06,1.6), (1.5e+06,1.8), (1.75e+06,2), (2e+06,2.2), (2.225e+06,2.4\
+		), (2.5e+06,2.6), (2.75e+06,2.8), (3e+06,3), (3e+07,30))
+	~	dmnl
+	~		|
+
+adding capacity=
+	IF THEN ELSE( Time = 2020 :OR: Time = Year of New Investment, Concentration Cap built\
+		/TIME STEP
+	, 0)
+	~	ton/(Year*Year)
+	~		|
+
+adding geo conversion capa=
+	IF THEN ELSE( Time = 2020 :OR: Time = Year of New Investment, Conversion Cap built/TIME STEP\
+		, 0)
+	~	ton/(Year*Year)
+	~	IF THEN ELSE( Time = 2020 :OR: Time = Year of New Investment, LI CONVERSION CAPA \
+		MODULE/TIME STEP
+		, 0) 
+		Got rid of "time step" as it increases the capacity beyond the limit
+	|
+
+Conversion Cap built=
+	LI CONVERSION CAPA MODULE*(0+Conversion Cap per dollar)
+	~	ton/yr
+	~		|
+
+tonperyear=
+	1
+	~	ton/yr
+	~		|
+
+converted lithium=
+	MIN(CONVERSION RECOVERY RATE*(li conc from ion exchange+li concentrate),CONVERSION RECOVERY RATE\
+		*Brine Processing Capacity)
+	~	ton/Year
+	~	MIN(CONVERSION RECOVERY RATE*(li conc from ion exchange+li \
+		concentrate),CONC RECOVERY RATE*Brine Processing Capacity)
+	|
+
+dollar=
+	1
+	~	$
+	~		|
+
+Concentration Cap built=
+	LI CONCENTRATING CAPACITY MODULE*(0+Concentration Cap per dollar)
+	~	ton/yr
+	~		|
+
+Concentration Cap per dollar="Table for Capex/ConcCap Module"(actual capex/dollar )
+	~	dmnl
+	~		|
+
+LI CONCENTRATING CAPACITY MODULE=
+	20000
+	~	ton/Year
+	~	According to Parans papers- 20000
+	|
+
+price year before= DELAY FIXED (
+	Price, TIME TO ADJUST PRICE, INIT PRICE)
+	~	$/ton
+	~		|
+
+effect price demand=
+	EXP(-DMD ELASTICITY * LN(Price/price year before))
+	~	dmnl
+	~	EXP(-DMD ELASTICITY * LN(Price/price year before))
+		(Price/price year before)^(-DMD ELASTICITY)
+	|
+
+actual backlog time=
+	MAX( ZIDZ(Backlog , processed orders),0)
+	~	yr
+	~		|
+
+Concentrate capacity growth=
+	mine capacity to add 0
+	~	ton/(Year*Year)
+	~		|
+
+Processing capacity growth=
+	process capacity to add
+	~	ton/(Year*Year)
+	~		|
+
+desired backlog=
+	Average Orders*STANDARD BACKLOG TIME
+	~	ton
+	~		|
+
+desired production=
+	(backlog correction+Average Orders)
+	~	ton/yr
+	~		|
+
+Average Orders= INTEG (
+	(new orders-Average Orders)/TIME TO AVERAGE ORDERS,
+		new orders)
+	~	ton/yr
+	~		|
+
+brine process capacity growth=
+	brine process capacity to add
+	~	ton/(Year*Year)
+	~		|
+
+TIME TO AVERAGE ORDERS=
+	0.75
+	~	yr
+	~	0.25
+	|
+
+brine conc capacity to add=
+	MAX((targeted brine conc capacity-Direct Extraction Capacity)/TIME TO BUILD MINING CAPA\
+		, 0)
+	~	ton/(Year*yr)
+	~	The integer function rounds down, add 0.5 to round up
+		integer(0.5+MAX(0,targeted brine conc capacity-total conc \
+		capacity)/CAPACITY MODULE SIZE)*CAPACITY MODULE SIZE
+	|
+
+new investment=
+	brine conc capacity to add
+	~	ton/(Year*Year)
+	~	DELAY1(brine conc capacity to add/per year, TIME TO BUILD MINING CAPA)
+	|
+
+TIME TO CORRECT BACKLOG=1
+	~	yr
+	~	0.25
+	|
+
+Backlog= INTEG (
+	new orders-processed orders,
+		INIT DEMAND*per year/1)
+	~	ton
+	~	INIT DEMAND*per year
+	|
+
+backlog correction=
+	(Backlog-desired backlog)/TIME TO CORRECT BACKLOG
+	~	ton/yr
+	~		|
+
+process capacity to add=
+	MAX((targeted process capacity-Processing Capacity)/TIME TO BUILD REFIN CAPA, 0)
+	~	ton/(Year*yr)
+	~		|
+
+mine capacity to add 0=
+	MAX((targeted mining capacity 0-Concentrate Capacity)/TIME TO BUILD MINING CAPA, 0)
+	~	ton/(Year*yr)
+	~		|
+
+potential production=
+	Brine Processing Capacity+Installed Geo Li Conversion Capa+Processing Capacity
+	~	ton/yr
+	~	Potential capacity
+	|
+
+years of operation=
+	Time - 2020
+	~	Year
+	~		|
+
+production capa=Installed Geo Li Concentrating Capa*FAST RAMP UP CURVE(years of operation\
+		/oneyear)
+	~	ton/Year
+	~	Using a growth ramp for the 1st 5 years for production capacity
+	|
+
+oneyear=
+	1
+	~	yr
+	~		|
+
+dollarperton=
+	1
+	~	$/ton
+	~		|
+
+one year=
+	1
+	~	yr
+	~		|
+
+li from geo=
+	MIN(Geo Li Inventory/SHIPPING TIME,Installed Geo Li Conversion Capa)
+	~	ton/Year
+	~		|
+
+Year of New Investment= INTEG (
+	tracking-resetting year,
+		0)
+	~	Year
+	~		|
+
+"GEOTHERMAL ON?"=
+	1
+	~	dmnl
+	~		|
+
+Li in Geo Ion Exchange= INTEG (
+	geo extraction-lost in geo ion exchange-to geo conversion,
+		0)
+	~	ton
+	~		|
+
+from conversion=
+	CONVERSION RECOVERY RATE*to geo conversion
+	~	ton/Year
+	~		|
+
+total supply=
+	brine li to be sold+li from ore+"GEOTHERMAL ON?"*li from geo
+	~	ton/yr
+	~		|
+
+annual profit=
+	li from geo*(Price-UNIT OPEX)
+	~	$/Year
+	~		|
+
+Remaining Imperial Li Reserve= INTEG (
+	-geo extraction,
+		IMPERIAL LI RESERVE)
+	~	ton
+	~		|
+
+lost in geo ion exchange=
+	(1-ION EXCHANGE RECOVERY)*Li in Geo Ion Exchange/per year
+	~	ton/Year
+	~		|
+
+to geo conversion=
+	ION EXCHANGE RECOVERY*Li in Geo Ion Exchange/per year
+	~	ton/Year
+	~		|
+
+Installed Geo Li Conversion Capa= INTEG (
+	adding geo conversion capa,
+		0)
+	~	ton/Year
+	~		|
+
+resetting year=
+	"start new investment?"*Year of New Investment/TIME STEP
+	~	dmnl
+	~		|
+
+Geo Li Inventory= INTEG (
+	from conversion-li from geo,
+		0)
+	~	ton
+	~		|
+
+tracking=
+	time to start new investment/TIME STEP
+	~	dmnl
+	~		|
+
+geo extraction=
+	MIN(ave li amount extracted per yr,production capa)
+	~	ton/Year
+	~		|
+
+LI CONVERSION CAPA MODULE=
+	20000
+	~	ton/Year
+	~	According to Parans papers - 20000
+	|
+
+time to start new investment=
+	IF THEN ELSE("start new investment?"=0, 0, IF THEN ELSE( Time = 2020, 2020, Time + TIME TO BUILD REFIN CAPA\
+		))
+	~	Year
+	~		|
+
+actual capex=
+	IF THEN ELSE( Time = 2020 :OR: Time = Year of New Investment, CAPEX, 0)
+	~	$
+	~		|
+
+CAPEX=
+	5.23e+07
+	~	$
+	~	https://www.energy.gov/eere/geothermal/geothermal-faqs#cost_to_develop_geothermal_pow\
+		er_plant
+		$2500/kW, with 1.68 kW per mt
+		41840000 - low
+		62700000 - high
+		
+		Value correspond to 22,000mt/yr worth of capacity - 90 e+007 - 
+		6199200
+		2.7678e+006
+		46200
+	|
+
+ave li amount extracted per yr=
+	AVE IMPERIAL LI CONCENTRATION*ave q of imperial per yr
+	~	ton/Year
+	~		|
+
+FAST RAMP UP CURVE([(0,0)-(2,1)],(0,0), (0.5,0.7), (1,0.95), (1.5,1), (2,1), (10,1))
+	~	dmnl
+	~		|
+
+Installed Geo Li Concentrating Capa= INTEG (
+	adding capacity,
+		0)
+	~	ton/Year
+	~		|
+
+AVE IMPERIAL LI CONCENTRATION=
+	0.000196
+	~	ton/(m*m*m)
+	~	Based on geothermal database provided by Neupane, 2017 - 0.000196
+	|
+
+UNIT OPEX=
+	4000
+	~	$/ton
+	~	Source: Argus Metals - 6875 2020, 5180 - 2010, 6500 - 2015
+		scenario from 5500 to 7500
+		Selective Recovery of Lithium from Geothermal Brines - 4000
+		low = 3200, high = 4800
+	|
+
+IMPERIAL GEOTHERMAL CAPACITY=
+	650
+	~	MW
+	~	Data from EIA.gov - Name of the geo plant
+	|
+
+IMPERIAL LI RESERVE=
+	3.74e+07
+	~	ton
+	~	Calculated from reservoir volume * ave Li concentration
+	|
+
+ave q of imperial per yr=
+	AVE Q PER MW PER YR*IMPERIAL GEOTHERMAL CAPACITY
+	~	m*m*m/Year
+	~		|
+
+AVE Q PER MW PER YR=
+	452500*365*0.00378541
+	~	m*m*m/MW/Year
+	~	Min Q: 393000 gal/MW/day, max Q: 512000 gal/MW/day, ave: 452500, 1 gal = \
+		0.00378541  m3
+	|
+
+PCT ORE SUPPLY TABLE(
+	[(4000,0)-(9500,1)],(4000,0),(4900,0.02),(5000,0.44),(5400,0.54),(5600,0.58),(6400,0.59\
+		),(6700,0.79),(7000,0.88),(8000,0.92),(9000,1),(9500,1))
+	~	dmnl
+	~	Roskill
+	|
+
+ADJUSTMENT TABLE(
+	[(-2,0)-(5,0.6)],(-2,0),(-1,0),(0,0),(1,0.5),(2,0.33),(3,0.25),(4,0.2),(5,0.1))
+	~	dmnl
+	~		|
+
+PCT BRINE SUPPLY TABLE(
+	[(4000,0)-(6500,1)],(4000,0),(4200,0.03),(4400,0.15),(4800,0.24),(5100,0.28),(5200,0.3\
+		),(5400,0.38),(5500,0.41),(6400,0.76),(6500,1))
+	~	dmnl
+	~	Roskill
+	|
+
+Non EV Demand growth=
+	Non EV Demand*NON EV DEMAND GROWTH RATE/per year
+	~	ton/yr/yr
+	~		|
+
+NPS SCENARIO(
+	[(2000,0)-(2030,800000)],(2000,300),(2001,652),(2002,1158),(2003,1530),(2004,2706),(\
+		2005,6740),(2006,8062),(2007,11214),(2008,9780),(2009,8958),(2010,8470),(2011,8979)\
+		,(2012,14991),(2013,18033),(2014,17198),(2015,17378),(2016,24635),(2017,39637),(2018\
+		,73052),(2019,79373),(2020,139770),(2021,201950),(2022,291520),(2023,351253),(2024,\
+		406070),(2025,511803),(2026,562167),(2027,606980),(2028,700649),(2029,735403),(2030\
+		,742596))
+	~	ton/yr
+	~	Data from EV scenarios, NPS. Compared with consumption data from Roskill, demand \
+		from 2015 to 2017 is low
+		[(2020,0)-(2030,800000)],(2020,139770),(2021,201950),(2022,291520),(2023,351253),(202\
+		4,406070),(2025,511803),(2026,562167),(2027,606980),(2028,700649),(2029,735\
+		403),(2030,742596)
+		[(2010,0)-(2030,800000)],(2010,8470),(2011,8979),(2012,14991),(2013,18033),\
+		(2014,17198),(2015,17378),(2016,24635),(2017,39637),(2018,73052),(2019,7937\
+		3),(2020,139770),(2021,201950),(2022,291520),(2023,351253),(2024,406070),(2\
+		025,511803),(2026,562167),(2027,606980),(2028,700649),(2029,735403),(2030,7\
+		42596)
+	|
+
+li lost in evap process= DELAY FIXED (
+	(1-CONC RECOVERY RATE)*brine extraction, evap time, 0)
+	~	ton/Year
+	~	Initial value = 5000 ton/yr
+	|
+
+CAPACITY MODULE SIZE=
+	10000
+	~	ton/Year
+	~		|
+
+li concentrate= DELAY FIXED (
+	CONC RECOVERY RATE*brine extraction, evap time,0)
+	~	ton/Year
+	~	Initial value = 30000 ton/yr
+	|
+
+EV30 SCENARIO([(2000,0)-(2030,2.1e+06)],(2000,300), (2001,652), (2002,1158), (2003,1530\
+		), (2004,2706), (2005,6740), (2006,8062), (2007,11214), (2008,9780), (2009,8958), (\
+		2010,8470), (2011,8979), (2012,14991), (2013,18033), (2014,17198), (2015,17378), (2016\
+		,24635), (2017,39637), (2018,73052), (2019,79373), (2020,142927), (2021,284112), (2022\
+		,476502), (2023,630443), (2024,781868), (2025,1.04564e+06), (2026,1.21006e+06), (2027\
+		,1.37163e+06), (2028,1.67944e+06), (2029,1.84987e+06), (2030,2.023e+06), (2050,2.023e+06\
+		))
+	~	ton/yr
+	~	Data from EV scenarios, EV30
+		[(2020,0)-(2030,800000)],(2020,142927),(2021,284112),(2022,476502),(2023,630443),(202\
+		4,781868),(2025,1.04564e+006),(2026,1.21006e+006),(2027,1.37163e+006),(2028\
+		,1.67944e+006),(2029,1.84987e+006),(2030,2.023e+006)
+		[(2010,0)-(2030,800000)],(2010,8470),(2011,8979),(2012,14991),(2013,18033),\
+		(2014,17198),(2015,17378),(2016,24635),(2017,39637),(2018,73052),(2019,7937\
+		3),(2020,142927),(2021,284112),(2022,476502),(2023,630443),(2024,781868),(2\
+		025,1.04564e+006),(2026,1.21006e+006),(2027,1.37163e+006),(2028,1.67944e+00\
+		6),(2029,1.84987e+006),(2030,2.023e+006)
+	|
+
+Li in Ion Exchange= INTEG (
+	direct extraction-li conc from ion exchange-li lost in ion exchange,
+		100000)
+	~	ton
+	~	direct extraction*per year
+	|
+
+desired supply and capacity ratio=
+	tentative brine extraction quantity evap method/total conc capacity
+	~	dmnl
+	~		|
+
+Direct Extraction Capacity= INTEG (
+	new investment,
+		INIT DIRECT EXTRACTION)
+	~	ton/Year
+	~		|
+
+brine extraction=
+	tentative brine extraction quantity evap method*evap capacity share*CONC RECOVERY RATE
+	~	ton/Year
+	~	tentative brine extraction quantity evap method*evap capacity share/CONC \
+		RECOVERY RATE
+	|
+
+ION EXCHANGE RECOVERY=
+	0.95
+	~	dmnl
+	~		|
+
+CAPACITY TIME=
+	25
+	~	Year
+	~	Assumed
+	|
+
+total conc capacity=
+	Evaporation Capacity+Direct Extraction Capacity
+	~	ton/Year
+	~		|
+
+INIT BRINE RESERVE=
+	ALBERMALE RESERVE+GALAXY LITHIUM RESERVE+OROCOBRE RESERVE+QINGHAI SALTLAKE+SQM RESERVE\
+		+TIBET ZHABUYE+LIVENT CAUCHARI RESERVE+LIVENT HOMBRE MUERTO RESOURCE
+	~	ton
+	~		|
+
+li lost in ion exchange=
+	(1-ION EXCHANGE RECOVERY)*Li in Ion Exchange/per year
+	~	ton/Year
+	~		|
+
+evap capacity share=
+	Evaporation Capacity/total conc capacity
+	~	dmnl
+	~		|
+
+CONC RECOVERY RATE=
+	0.91
+	~	dmnl
+	~		|
+
+retired evap capacity=
+	Evaporation Capacity/CAPACITY TIME
+	~	ton/(Year*Year)
+	~		|
+
+li conc from ion exchange=
+	MIN(Direct Extraction Capacity,Li in Ion Exchange*ION EXCHANGE RECOVERY/per year)
+	~	ton/Year
+	~		|
+
+evap time=
+	1.5
+	~	Year
+	~		|
+
+ALBERMALE RESERVE=
+	210000
+	~	ton
+	~	Roskill, Table 63, US only, Chile data unknown
+	|
+
+INIT EVAP CAPACITY=
+	121500
+	~	ton/Year
+	~	Including SQM, Albermale in Chile & US, Orocobre & China Brine, Table 4, \
+		Roskill outlook 2028
+	|
+
+OROCOBRE RESERVE=
+	6.42e+06
+	~	ton
+	~	Roskill, Table 63
+	|
+
+Remaining Brine Reserve= INTEG (
+	-brine extraction-direct extraction,
+		INIT BRINE RESERVE)
+	~	ton
+	~		|
+
+Evaporation Capacity= INTEG (
+	-retired evap capacity,
+		INIT EVAP CAPACITY)
+	~	ton/Year
+	~		|
+
+QINGHAI SALTLAKE=
+	7.2e+06
+	~	ton
+	~	Roskill, Table 63
+	|
+
+tentative mining quantity=
+	potential ore supply curve*PHYSICAL RECOVERY RATE*CHEMICAL RECOVERY RATE
+	~	ton/Year
+	~	potential ore supply curve/PHYSICAL RECOVERY RATE/CHEMICAL RECOVERY RATE
+	|
+
+PURIFICATION TIME=
+	1/24
+	~	Year
+	~	Assumed half a month
+	|
+
+TABLE CONVERSION1(
+	[(0,0)-(1,1)],(0,0),(0.001,0),(0.002,0),(0.003,0),(0.004,0),(0.005,0.95),(0.06,1),(0.1\
+		,1),(1,1))
+	~	dmnl
+	~	Quality check of Li concentration to move to conversion
+	|
+
+PURIFICATION RECOVERY RATE=
+	0.97
+	~	dmnl
+	~	Assumed
+	|
+
+LIVENT CAUCHARI RESERVE=
+	IF THEN ELSE(Time>=2020, 1.5e+06, 0)
+	~	ton
+	~	Roskill Table 63
+	|
+
+DEMAND ADJUSTMENT TIME=
+	0.25
+	~	Year
+	~		|
+
+Li demand from EV=
+	effective scenario
+	~	ton/yr
+	~		|
+
+Li to be refined=
+	MIN(Processing Capacity*CHEMICAL RECOVERY RATE,Concentrate at Conversion/ORE PROCESSING TIME\
+		)
+	~	ton/yr
+	~	Constrained by processing capacity
+		MIN(Processing Capacity/CHEMICAL RECOVERY RATE,Concentrate at \
+		Conversion/ORE PROCESSING TIME)
+	|
+
+Brine Processing Capacity= INTEG (
+	brine process capacity growth,
+		INIT BRINE PROCESSING CAPACITY)
+	~	ton/Year
+	~		|
+
+INIT DIRECT EXTRACTION=
+	20000
+	~	ton/Year
+	~		|
+
+ION EXCHANGE PRODUCTION=
+	0
+	~	dmnl
+	~		|
+
+ION EXCHANGE TIME=
+	1/12
+	~	Year
+	~		|
+
+INIT BRINE PROCESSING CAPACITY=
+	50000
+	~	ton/Year
+	~	Roskill, Table 7 147500
+	|
+
+brine li to be sold=
+	Hydroxide or Carbonate Inventory/SHIPPING TIME
+	~	ton/yr
+	~		|
+
+refining=
+	Li to be refined*CHEMICAL RECOVERY RATE
+	~	ton/Year
+	~		|
+
+li from ore=
+	Refined Li Inventory/SHIPPING TIME
+	~	ton/Year
+	~		|
+
+EVAPORATION PRODUCTION=
+	0
+	~	dmnl
+	~		|
+
+SHIPPING TIME=
+	0.75
+	~	Year
+	~		|
+
+ION EXCHANGE RECOVERY RATE=
+	0.93
+	~	dmnl
+	~	Assumed, based on Parans' efficiency
+	|
+
+per year=
+	1
+	~	Year
+	~		|
+
+ALLIANCE MINERAL BALD HILL RESERVE=
+	130000
+	~	ton
+	~	LCE, Roskill table 219
+	|
+
+ALTURA MINING RESERVE=
+	880000
+	~	ton
+	~	LCE, Roskill Table 220
+	|
+
+GALAXY LITHIUM RESERVE=
+	1.14e+06
+	~	ton
+	~	LCE, Roskill, Table 64
+	|
+
+PHYSICAL RECOVERY RATE=
+	0.9
+	~	dmnl
+	~		|
+
+BIKITA MINERALS RESERVE=
+	370000
+	~	ton
+	~	LCE, Roskill Table 62
+	|
+
+REFINING CAPA BUFFER=1.1
+	~	dmnl [1,2]
+	~		|
+
+processed ore=
+	rock mining*PHYSICAL RECOVERY RATE
+	~	ton/Year
+	~		|
+
+CATL LA CORNE RESERVE=
+	400000
+	~	ton
+	~	LCE, Roskill Table 62
+	|
+
+PILBARA MINERALS RESERVES=
+	2.52e+06
+	~	ton
+	~	Roskill Table 257, spodumene
+	|
+
+JIANGXI RESERVE=
+	950000
+	~	ton
+	~	LCE, Table 247 Roskill
+	|
+
+CONVERSION RECOVERY RATE=
+	0.92
+	~	dmnl
+	~		|
+
+converted quantity comparison=
+	Concentrate at Conversion/ORE PROCESSING TIME/Processing Capacity
+	~	dmnl
+	~		|
+
+to refinery=
+	Concentrate Inventory/ORE PROCESSING TIME
+	~	ton/Year
+	~		|
+
+ORE PROCESSING TIME=
+	0.4
+	~	Year
+	~		|
+
+KELIBER RESERVE=
+	122000
+	~	ton
+	~	LCE, Definitive feasibility study
+	|
+
+GALAXY MTCATTLIN RESERVE=
+	198384
+	~	ton
+	~	LCE, Dec 2017 data, Roskill
+	|
+
+TALISON GREENBUSHES RESERVE=
+	4.27e+06
+	~	ton
+	~	LCE, Roskill table 62
+	|
+
+INIT PROCESSING CAPACITY=
+	25000
+	~	ton/Year
+	~	Roskill, Table 7 105100
+	|
+
+TIBET ZHABUYE=
+	1.83e+06
+	~	ton
+	~	LCE, Roskill Table 63
+	|
+
+CHEMICAL RECOVERY RATE=
+	0.92
+	~	dmnl
+	~		|
+
+TIME TO BUILD REFIN CAPA=4
+	~	yr [1,5]
+	~		|
+
+LIVENT HOMBRE MUERTO RESOURCE=
+	4.22e+06
+	~	ton
+	~	LCE, Roskill Table 62: 4.22e+006; Table 266 says 800kt
+	|
+
+resetting 2=
+	IF THEN ELSE(Observe Continuous Demand Growth>3 :OR: counting 2=0,Observe Continuous Demand Growth\
+		,0)/TIME STEP
+	~	1/yr
+	~		|
+
+SQM RESERVE=
+	4.551e+07
+	~	ton
+	~	LCE, Roskill Table 63
+	|
+
+NEMASKA LITHIUM WABOUCHI RESERVE=
+	1.28e+06
+	~	ton
+	~	LCE, spodumene, operational, Roskill table 253
+	|
+
+MINERAL RESOURCES WODGINA RESERVE=
+	320000
+	~	ton
+	~	LCE, Roskill Table 62
+	|
+
+Observe Continuous Demand Growth= INTEG (
+	counting 2-resetting 2,
+		0)
+	~	dmnl
+	~		|
+
+total reserve=
+	ALLIANCE MINERAL BALD HILL RESERVE+ALTURA MINING RESERVE + BIKITA MINERALS RESERVE +\
+		 CATL LA CORNE RESERVE+GALAXY MTCATTLIN RESERVE + JIANGXI RESERVE + MINERAL RESOURCES WODGINA RESERVE\
+		 + NEMASKA LITHIUM WABOUCHI RESERVE + PILBARA MINERALS RESERVES +TALISON GREENBUSHES RESERVE
+	~	ton
+	~		|
+
+Processing Capacity= INTEG (
+	Processing capacity growth,
+		INIT PROCESSING CAPACITY)
+	~	ton/Year
+	~		|
+
+Remaining Reserve= INTEG (
+	-rock mining,
+		total reserve)
+	~	ton
+	~		|
+
+days per year=
+	365
+	~	day/yr
+	~		|
+
+origin time=
+	0
+	~	day
+	~		|
+
+INIT MINING CAPACITY=
+	20000
+	~	ton/Year
+	~	269302, not sure where this number comes from; Roskill Table 4 for mineral \
+		mining capacity 79352
+	|
+
+MINING CAPA BUFFER FACTOR=1.1
+	~	dmnl [1,2]
+	~		|
+
+TIME TO BUILD MINING CAPA=3
+	~	yr [1,5]
+	~		|
+
+Concentrate Capacity= INTEG (
+	Concentrate capacity growth,
+		INIT MINING CAPACITY)
+	~	ton/Year
+	~		|
+
+NON EV DEMAND GROWTH RATE=
+	0.03
+	~	dmnl
+	~		|
+
+Non EV Demand= INTEG (
+	Non EV Demand growth,
+		INIT NON EV DEMAND)
+	~	ton/yr
+	~		|
+
+INIT NON EV DEMAND=
+	174922
+	~	ton/Year
+	~	Lithium Outlook to 2028 - Table 18, sum up all non-rechargable \
+		applications and 55% of rechargable batteries but didn't match with EV \
+		demand, decided to use total demand subtract scenarios
+	|
+
+total theoretical Li demand=
+	Li demand from EV+Non EV Demand
+	~	ton/yr
+	~		|
+
+INIT PRICE=
+	1460
+	~	$/ton
+	~	6850 - price in 2020
+		6500 - price in 2015
+		5180 - price in 2010
+		UGS Source
+	|
+
+DMD ELASTICITY=
+	0.54
+	~	dmnl
+	~	-.54 Desormeaux reference
+	|
+
+INIT DEMAND=
+	65000
+	~	ton/Year
+	~	125000 \
+		https://www.researchgate.net/publication/316747087_Tracing_global_lithium_f\
+		low_A_trade-linked_material_flow_analysis/figures?lo=1
+		Roskill 192300
+		Roskill 2000 - 65000 Table 47
+	|
+
+Price= INTEG (
+	chg in price,
+		INIT PRICE)
+	~	$/ton
+	~		|
+
+STANDARD BACKLOG TIME=
+	0.875
+	~	yr
+	~		|
+
+TIME TO ADJUST PRICE=
+	0.85
+	~	yr
+	~	0.4
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 2050
+	~	Year
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 2005
+	~	Year
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 0.125
+	~	Year [0,?]
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.125
+	~	Year [0,?]
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Market
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|96,96,111,0
+10,1,Price,748,231,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+12,2,48,744,560,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,3,5,1,4,0,0,22,0,0,0,-1--1--1,,1|(744,310)|
+1,4,5,2,100,0,0,22,0,0,0,-1--1--1,,1|(744,466)|
+11,5,0,744,375,8,6,33,3,0,0,4,0,0,0,0,0,0,0,0,0
+10,6,chg in price,795,375,43,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,7,price year before,923,116,60,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,8,TIME TO ADJUST PRICE,1411,381,49,22,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,9,1,6,1,0,0,0,0,64,0,-1--1--1,,1|(818,305)|
+10,10,adjusted demand,1052,502,60,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,11,DMD ELASTICITY,1147,291,53,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,12,11,48,1,0,0,0,0,64,0,-1--1--1,,1|(1068,359)|
+1,13,1,7,1,0,0,0,0,64,0,-1--1--1,,1|(811,143)|
+1,14,1,48,1,0,0,0,0,64,0,-1--1--1,,1|(850,241)|
+1,15,7,48,1,0,0,0,0,64,0,-1--1--1,,1|(977,233)|
+10,16,new price,573,536,38,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,17,posted demand,1041,661,55,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,18,10,17,1,0,0,0,0,64,0,-1--1--1,,1|(1079,578)|
+1,19,16,6,1,0,0,0,0,64,0,-1--1--1,,1|(720,467)|
+1,20,8,17,1,0,0,0,0,64,0,-1--1--1,,1|(1266,624)|
+10,21,potential brine supply curve,670,27,66,26,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,22,INIT PRICE,406,145,42,11,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,23,22,1,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,24,potential ore supply curve,835,25,47,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,25,total supply,341,645,63,25,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,26,1,24,1,0,0,0,0,64,0,-1--1--1,,1|(711,153)|
+10,27,brine li to be sold,212,843,70,9,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,28,li from ore,171,542,49,33,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,29,27,25,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,30,28,25,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,31,PCT ORE SUPPLY TABLE,922,-219,67,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,32,PCT BRINE SUPPLY TABLE,528,-204,53,21,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,33,Brine Processing Capacity,703,-177,58,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,34,33,21,1,0,0,0,0,64,0,-1--1--1,,1|(637,-91)|
+10,35,Processing Capacity,839,-164,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,36,35,24,1,0,0,0,0,64,0,-1--1--1,,1|(882,-80)|
+10,37,"GEOTHERMAL ON?",161,475,56,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,38,li from geo,174,714,49,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,39,38,25,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,40,37,25,1,0,0,0,0,64,0,-1--1--1,,1|(260,487)|
+10,41,Price,2267,889,27,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,42,Time,2266,924,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,43,one year,2260,856,37,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,44,dollarperton,781,-108,39,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,45,44,21,1,0,0,0,0,64,0,-1--1--1,,1|(692,-75)|
+1,46,44,24,1,0,0,0,0,64,0,-1--1--1,,1|(831,-42)|
+1,47,1,21,1,0,0,0,0,64,0,-1--1--1,,1|(647,155)|
+10,48,effect price demand,989,358,36,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,49,48,10,1,0,0,0,0,64,0,-1--1--1,,1|(1046,435)|
+10,50,TIME TO ADJUST PRICE,813,674,60,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,51,DMD ELASTICITY,229,124,66,29,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,52,TIME TO ADJUST PRICE,862,516,60,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,53,52,6,1,0,0,0,0,64,0,-1--1--1,,1|(866,445)|
+1,54,25,56,1,0,0,0,0,64,0,-1--1--1,,1|(386,697)|
+1,55,1,16,1,0,0,0,0,64,0,-1--1--1,,1|(606,385)|
+10,56,adjusted supply,487,724,49,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,57,price year before,559,134,62,26,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,58,8,7,1,0,0,0,0,64,0,-1--1--1,,1|(1153,112)|
+1,59,22,7,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,60,backlog pressure,189,360,32,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,61,EFFECT BACKLOG ON PRICEW,97,280,72,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,62,multi,337,413,16,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,63,60,62,1,0,0,0,0,64,0,-1--1--1,,1|(248,389)|
+1,64,62,16,1,0,0,0,0,64,0,-1--1--1,,1|(494,458)|
+10,65,LI SUPPLY TABLE,445,18,41,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,66,LI SUPPLY TABLE,1013,3,45,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,67,adjusted demand based on supply,906,609,59,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,68,67,10,1,0,0,0,0,64,0,-1--1--1,,1|(940,551)|
+10,69,total theoretical Li demand,861,759,62,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,70,69,17,1,0,0,0,0,64,1,-1--1--1,,1|(966,731)|
+1,71,61,62,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,72,0,2238,57,301,342,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+Price,Causes Strip
+12,73,0,1680,58,221,329,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+multi,Causes Strip
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Production from Brine
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|96,96,60,0
+10,1,Hydroxide or Carbonate Inventory,2153,210,58,22,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,2,48,2365,212,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,3,5,2,4,0,0,22,0,0,0,-1--1--1,,1|(2323,212)|
+1,4,5,1,100,0,0,22,0,0,0,-1--1--1,,1|(2245,212)|
+11,5,0,2285,212,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,6,brine li to be sold,2285,231,59,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,7,1,6,1,0,0,0,0,64,0,-1--1--1,,1|(2225,260)|
+10,8,INIT BRINE RESERVE,736,277,43,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,9,SQM RESERVE,543,413,95,6,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,10,TIBET ZHABUYE,476,381,83,24,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,11,GALAXY LITHIUM RESERVE,505,197,138,22,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,12,9,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,13,10,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,14,11,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,15,Remaining Brine Reserve,1417,393,59,21,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,16,potential brine supply curve,1391,111,50,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,17,LIVENT HOMBRE MUERTO RESOURCE,481,138,85,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,18,CONVERSION RECOVERY RATE,1724,72,67,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,19,per year,2326,405,57,14,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+12,20,48,1951,206,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,21,23,1,4,0,0,22,0,0,0,-1--1--1,,1|(2064,206)|
+1,22,23,20,100,0,0,22,0,0,0,-1--1--1,,1|(1991,206)|
+11,23,0,2028,206,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,24,converted lithium,2028,225,53,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,25,18,24,1,0,0,0,0,64,0,-1--1--1,,1|(1921,141)|
+10,26,Brine Processing Capacity,2054,718,69,16,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,27,48,2397,714,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,28,30,26,4,0,0,22,0,0,0,-1--1--1,,1|(2190,714)|
+1,29,30,27,100,0,0,22,0,0,0,-1--1--1,,1|(2328,714)|
+11,30,0,2263,714,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,31,brine process capacity growth,2263,732,54,19,40,131,0,0,-1,0,0,0,0,0,0,0,0,0
+10,32,INIT BRINE PROCESSING CAPACITY,1853,777,82,31,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,33,brine process capacity to add,2102,820,54,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,34,targeted brine processing capacity,2053,932,62,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,35,TIME STEP,2278,598,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,36,33,31,1,0,0,0,0,64,0,-1--1--1,,1|(2214,800)|
+1,37,26,33,1,0,0,0,0,64,0,-1--1--1,,1|(2037,768)|
+1,38,34,33,1,0,0,0,0,64,0,-1--1--1,,1|(2105,879)|
+1,39,32,26,1,0,0,0,0,64,1,-1--1--1,,1|(2004,726)|
+10,40,demand growth rate,2115,1063,55,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,41,per year,2211,981,34,15,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,42,SHIPPING TIME,2285,124,43,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,43,42,6,1,0,0,0,0,64,0,-1--1--1,,1|(2317,174)|
+10,44,tentative brine extraction quantity evap method,1511,196,78,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,45,16,44,1,0,0,0,0,64,0,-1--1--1,,1|(1452,151)|
+1,46,18,44,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,47,INIT DIRECT EXTRACTION,1301,730,64,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,48,REFINING CAPA BUFFER,1882,903,50,25,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,49,48,34,1,0,0,0,0,64,0,-1--1--1,,1|(1944,900)|
+10,50,TIME TO BUILD REFIN CAPA,2351,870,72,20,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,51,50,33,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,52,potential brine supply curve,1726,771,50,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,53,per year,1608,764,35,16,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,54,Li in Evap Pond,1692,402,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,55,57,54,4,0,0,22,0,0,0,-1--1--1,,1|(1607,398)|
+1,56,57,15,100,0,0,22,0,0,0,-1--1--1,,1|(1513,398)|
+11,57,0,1557,398,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,58,brine extraction,1557,417,49,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,59,44,58,1,0,0,0,0,64,0,-1--1--1,,1|(1491,291)|
+10,60,per year,1029,320,28,13,8,131,0,0,-1,0,0,0,0,0,0,0,0,0
+10,61,LIVENT CAUCHARI RESERVE,528,510,74,19,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,62,Time,482,589,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,63,62,61,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,64,tentative brine extraction quantity evap method,1700,816,82,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,65,per year,2015,1110,42,18,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,66,per year,1402,1174,32,16,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,67,Evaporation Capacity,716,732,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,68,Direct Extraction Capacity,1176,731,61,21,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,69,8,15,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+12,70,48,934,731,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,71,73,70,4,0,0,22,0,0,0,-1--1--1,,1|(892,731)|
+1,72,73,67,100,0,0,22,0,0,0,-1--1--1,,1|(802,731)|
+11,73,0,855,731,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,74,retired evap capacity,855,758,39,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,75,48,988,731,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,76,78,68,4,0,0,22,0,0,0,-1--1--1,,1|(1077,731)|
+1,77,78,75,100,0,0,22,0,0,0,-1--1--1,,1|(1012,731)|
+11,78,0,1033,731,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,79,new investment,1033,750,48,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,80,INIT EVAP CAPACITY,714,804,42,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,81,80,67,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,82,QINGHAI SALTLAKE,483,297,98,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,83,ALBERMALE RESERVE,446,254,49,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,84,83,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,85,82,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,86,OROCOBRE RESERVE,675,449,46,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,87,86,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+12,88,48,1974,399,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,89,91,88,4,0,0,22,0,0,0,-1--1--1,,1|(1900,399)|
+1,90,91,54,100,0,0,22,0,0,0,-1--1--1,,1|(1778,399)|
+11,91,0,1831,399,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,92,li concentrate,1831,418,42,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,93,evap capacity share,885,608,44,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,94,67,93,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,95,Evaporation Capacity,2300,449,44,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,96,Li in Ion Exchange,1123,404,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,97,99,96,4,0,0,22,0,0,0,-1--1--1,,1|(1214,396)|
+1,98,99,15,100,0,0,22,0,0,0,-1--1--1,,1|(1317,396)|
+11,99,0,1271,396,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,100,direct extraction,1271,415,51,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,101,44,100,1,0,0,0,0,64,0,-1--1--1,,1|(1329,290)|
+12,102,48,812,402,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,103,105,102,4,0,0,22,0,0,0,-1--1--1,,1|(867,402)|
+1,104,105,96,100,0,0,22,0,0,0,-1--1--1,,1|(1004,402)|
+11,105,0,919,402,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,106,li conc from ion exchange,919,429,49,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,107,68,106,1,0,0,0,0,64,0,-1--1--1,,1|(1066,581)|
+1,108,60,106,1,0,0,0,0,64,0,-1--1--1,,1|(954,343)|
+1,109,96,106,1,0,0,0,0,64,0,-1--1--1,,1|(1038,460)|
+10,110,evap time,1796,233,31,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,111,110,92,1,0,0,0,0,64,0,-1--1--1,,1|(1838,312)|
+10,112,CAPACITY TIME,820,832,42,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,113,112,74,1,0,0,0,0,64,0,-1--1--1,,1|(817,788)|
+1,114,67,74,1,0,0,0,0,64,0,-1--1--1,,1|(794,763)|
+10,115,total conc capacity,1042,654,59,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,116,47,68,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,117,CONC RECOVERY RATE,1761,137,67,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,118,67,115,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,119,68,115,1,0,0,0,0,64,0,-1--1--1,,1|(1090,698)|
+1,120,115,93,1,0,0,0,0,64,0,-1--1--1,,1|(972,584)|
+1,121,117,58,1,0,0,0,0,64,0,-1--1--1,,1|(1610,237)|
+12,122,48,1692,209,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,123,125,122,4,0,0,22,0,0,0,-1--1--1,,1|(1692,266)|
+1,124,125,54,100,0,0,22,0,0,0,-1--1--1,,1|(1692,354)|
+11,125,0,1692,320,8,6,33,3,0,0,4,0,0,0,0,0,0,0,0,0
+10,126,li lost in evap process,1740,320,40,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,127,117,126,1,0,0,0,0,64,0,-1--1--1,,1|(1733,211)|
+1,128,117,92,1,0,0,0,0,64,0,-1--1--1,,1|(1894,279)|
+1,129,110,126,1,0,0,0,0,64,0,-1--1--1,,1|(1749,271)|
+12,130,48,1134,134,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,131,133,130,4,0,0,22,0,0,0,-1--1--1,,1|(1134,193)|
+1,132,133,96,100,0,0,22,0,0,0,-1--1--1,,1|(1134,320)|
+11,133,0,1134,250,8,6,33,3,0,0,4,0,0,0,0,0,0,0,0,0
+10,134,li lost in ion exchange,1178,250,36,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,135,ION EXCHANGE RECOVERY,1206,93,62,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,136,135,106,1,0,0,0,0,64,0,-1--1--1,,1|(950,208)|
+1,137,135,134,1,0,0,0,0,64,0,-1--1--1,,1|(1187,191)|
+1,138,96,134,1,0,0,0,0,64,0,-1--1--1,,1|(1194,339)|
+1,139,60,134,1,0,0,0,0,64,0,-1--1--1,,1|(1070,243)|
+10,140,total conc capacity,1343,28,36,19,8,2,0,3,-1,1,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,141,desired supply and capacity ratio,1502,57,62,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,142,140,141,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,143,44,141,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,144,17,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,145,61,8,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,146,desired supply and capacity ratio,771,1035,51,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,147,TIME STEP,765,1085,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,148,CAPACITY MODULE SIZE,973,1024,54,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,149,targeted brine conc capacity,1271,1005,61,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,150,REFINING CAPA BUFFER,1502,1040,49,30,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,151,MINING CAPA BUFFER FACTOR,1373,841,65,31,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,152,demand growth rate,740,978,55,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,153,TIME TO BUILD MINING CAPA,905,910,64,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,154,brine conc capacity to add,1113,862,49,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,155,149,154,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,156,153,154,1,0,0,0,0,64,0,-1--1--1,,1|(997,834)|
+1,157,154,79,1,0,0,0,0,64,0,-1--1--1,,1|(1089,790)|
+1,158,92,24,1,0,0,0,0,64,0,-1--1--1,,1|(1973,310)|
+1,159,57,92,1,0,0,0,0,64,0,-1--1--1,,1|(1700,470)|
+1,160,58,126,1,0,0,0,0,64,0,-1--1--1,,1|(1622,349)|
+10,161,desired production,2096,1003,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,162,evap capacity share,1421,517,49,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,163,162,100,1,0,0,0,0,64,0,-1--1--1,,1|(1306,481)|
+1,164,162,58,1,0,0,0,0,64,0,-1--1--1,,1|(1522,487)|
+10,165,li conc from ion exchange,1940,75,54,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,166,165,24,1,0,0,0,0,64,0,-1--1--1,,1|(2004,120)|
+10,167,desired production,1437,968,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,168,151,149,1,0,0,0,0,64,0,-1--1--1,,1|(1352,944)|
+1,169,68,154,1,0,0,0,0,64,0,-1--1--1,,1|(1181,808)|
+10,170,Brine Processing Capacity,2126,93,58,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,171,170,24,1,0,0,0,0,64,0,-1--1--1,,1|(2064,146)|
+10,172,per year,1703,514,36,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,173,Price,980,35,27,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,174,total supply,2126,350,46,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,175,Observe Continuous Demand Growth,1726,1069,70,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,176,175,34,1,0,0,0,0,64,0,-1--1--1,,1|(1823,1017)|
+1,177,50,34,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,178,41,34,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,179,117,44,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,180,Observe Continuous Demand Growth,1215,1168,70,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,181,180,149,1,0,0,0,0,64,0,-1--1--1,,1|(1219,1066)|
+1,182,153,149,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,183,66,149,1,0,0,0,0,64,0,-1--1--1,,1|(1283,1050)|
+12,184,0,317,630,299,200,8,15,0,0,1,0,0,0,0,0,0,0,0,0
+supply-demand
+12,185,0,318,1031,300,200,0,15,0,0,1,0,0,0,0,0,0,0,0,0
+price
+10,186,time to observe,1689,1254,50,26,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,187,186,149,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,188,186,34,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,189,68,149,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,190,26,34,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,191,140,44,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,192,167,149,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,193,161,34,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Demand
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|96,96,124,0
+10,1,demand growth rate,765,505,50,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,2,INIT DEMAND,63,370,54,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,3,Backlog,552,617,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+12,4,48,810,612,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,5,7,3,4,0,0,22,0,0,0,-1--1--1,,1|(643,612)|
+1,6,7,4,100,0,0,22,0,0,0,-1--1--1,,1|(753,612)|
+11,7,0,700,612,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,8,new orders,700,631,36,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,9,48,326,611,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,10,12,9,4,0,0,22,0,0,0,-1--1--1,,1|(388,611)|
+1,11,12,3,100,0,0,22,0,0,0,-1--1--1,,1|(482,611)|
+11,12,0,447,611,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,13,processed orders,447,630,55,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,14,STANDARD BACKLOG TIME,554,955,62,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,15,posted demand,651,422,58,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,16,Non EV Demand,478,131,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+12,17,48,238,129,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,18,20,16,4,0,0,22,0,0,0,-1--1--1,,1|(399,129)|
+1,19,20,17,100,0,0,22,0,0,0,-1--1--1,,1|(298,129)|
+11,20,0,355,129,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,21,Non EV Demand growth,355,156,56,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,22,NON EV DEMAND GROWTH RATE,348,302,70,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,23,22,21,1,0,0,0,0,64,0,-1--1--1,,1|(307,227)|
+1,24,16,21,1,0,0,0,0,64,0,-1--1--1,,1|(412,201)|
+10,25,INIT NON EV DEMAND,448,26,50,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,26,25,16,1,0,0,0,0,64,1,-1--1--1,,1|(500,64)|
+10,27,total theoretical Li demand,641,41,57,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,28,16,27,1,0,0,0,0,64,0,-1--1--1,,1|(522,8)|
+10,29,Li demand from EV,635,166,51,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,30,29,27,1,0,0,0,0,64,0,-1--1--1,,1|(628,106)|
+10,31,effective scenario,711,278,54,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,32,31,29,1,0,0,0,0,64,0,-1--1--1,,1|(646,209)|
+10,33,total theoretical Li demand,186,543,62,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,34,NPS SCENARIO,864,200,89,14,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,35,EV30 SCENARIO,557,271,49,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,36,per year,83,44,31,15,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,37,Time,801,376,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,38,per year,109,254,36,12,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,39,36,3,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+1,40,2,3,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,41,total supply,507,386,46,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,42,DEMAND ADJUSTMENT TIME,43,746,75,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,43,38,21,1,0,0,0,0,64,0,-1--1--1,,1|(200,189)|
+1,44,37,31,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,45,ADJUSTMENT TABLE,55,708,54,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,46,one year,866,293,28,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,47,46,31,1,0,0,0,0,64,0,-1--1--1,,1|(773,275)|
+10,48,Average Orders,736,984,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,49,8,48,1,0,0,0,0,64,0,-1--1--1,,1|(795,799)|
+10,50,desired backlog,665,885,50,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,51,desired production,352,855,59,13,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,52,backlog correction,574,812,59,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,53,14,50,1,0,0,0,0,64,0,-1--1--1,,1|(643,929)|
+10,54,TIME TO CORRECT BACKLOG,688,784,73,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,55,TIME TO AVERAGE ORDERS,888,985,72,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,56,55,48,1,0,0,0,0,64,0,-1--1--1,,1|(818,959)|
+10,57,actual backlog time,444,750,46,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,58,3,57,1,0,0,0,0,64,0,-1--1--1,,1|(471,734)|
+1,59,13,57,1,0,0,0,0,64,0,-1--1--1,,1|(454,738)|
+10,60,potential production,245,893,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,61,48,50,1,0,0,0,0,64,0,-1--1--1,,1|(720,927)|
+1,62,50,52,1,0,0,0,0,64,0,-1--1--1,,1|(579,865)|
+1,63,52,51,1,0,0,0,0,64,0,-1--1--1,,1|(474,849)|
+1,64,48,51,1,0,0,0,0,64,0,-1--1--1,,1|(473,1006)|
+1,65,54,52,1,0,0,0,0,64,0,-1--1--1,,1|(660,823)|
+1,66,3,52,1,0,0,0,0,64,0,-1--1--1,,1|(609,723)|
+10,67,adjusted supply,195,645,58,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,68,backlog pressure,872,731,54,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,69,Time,69,498,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,70,Time,91,426,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,71,Time,63,566,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,72,adjusted demand,889,534,32,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,73,Price,1067,335,27,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,74,Time,199,410,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,75,67,13,1,0,0,0,0,64,0,-1--1--1,,1|(303,646)|
+1,76,15,8,1,0,0,0,0,64,0,-1--1--1,,1|(641,515)|
+1,77,72,1,1,0,0,0,0,64,0,-1--1--1,,1|(842,477)|
+1,78,15,1,1,0,0,0,0,64,0,-1--1--1,,1|(697,461)|
+10,79,supply demand ratio,509,472,48,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,80,15,79,1,0,0,0,0,64,0,-1--1--1,,1|(577,427)|
+1,81,41,79,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,82,adjusted demand based on supply,384,531,55,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,83,79,82,1,0,0,0,0,64,0,-1--1--1,,1|(412,470)|
+1,84,33,82,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,85,order proc time comparison,545,1115,50,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,86,55,85,1,0,0,0,0,64,0,-1--1--1,,1|(747,1077)|
+10,87,actual backlog time,397,1043,51,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,88,87,85,1,0,0,0,0,64,0,-1--1--1,,1|(428,1108)|
+1,89,35,31,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+12,90,0,1446,555,137,156,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+supply demand ratio,Causes Strip
+12,91,0,1161,934,108,200,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+Backlog,Causes Strip
+12,92,0,1433,908,132,184,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+backlog pressure,Graph
+1,93,3,68,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+1,94,50,68,0,0,0,0,0,192,0,-1--1--1,,1|(0,0)|
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Mining from Ore
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|96,96,70,0
+10,1,Concentrate Inventory,806,950,47,22,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,2,Concentrate Capacity,510,465,48,22,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,3,48,867,468,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,4,6,2,4,0,0,22,0,0,0,-1--1--1,,1|(619,468)|
+1,5,6,3,100,0,0,22,0,0,0,-1--1--1,,1|(774,468)|
+11,6,0,686,468,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,7,Concentrate capacity growth,686,495,44,19,40,131,0,0,-1,0,0,0,0,0,0,0,0,0
+10,8,INIT MINING CAPACITY,339,551,76,24,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,9,TIME TO BUILD MINING CAPA,820,315,64,24,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,10,mine capacity to add 0,580,371,52,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,11,targeted mining capacity 0,519,269,48,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,12,9,10,1,0,0,0,0,64,0,-1--1--1,,1|(774,412)|
+10,13,MINING CAPA BUFFER FACTOR,318,249,67,25,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,14,TIME STEP,1191,1241,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,15,10,7,1,0,0,0,0,64,0,-1--1--1,,1|(603,422)|
+1,16,2,10,1,0,0,0,0,64,0,-1--1--1,,1|(535,422)|
+1,17,11,10,1,0,0,0,0,64,0,-1--1--1,,1|(531,327)|
+1,18,8,2,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,19,Concentrate at Conversion,1058,952,58,20,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,20,48,1277,944,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,21,23,20,4,0,0,22,0,0,0,-1--1--1,,1|(1228,944)|
+1,22,23,19,100,0,0,22,0,0,0,-1--1--1,,1|(1146,944)|
+11,23,0,1183,944,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,24,Li to be refined,1183,971,40,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,25,Concentrate Capacity,681,1112,78,19,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,26,demand growth rate,413,55,55,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,27,19,24,1,0,0,0,0,64,0,-1--1--1,,1|(1116,1017)|
+10,28,Time,706,1001,26,11,8,2,1,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,29,PHYSICAL RECOVERY RATE,709,846,67,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,30,CHEMICAL RECOVERY RATE,768,582,67,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,31,potential ore supply curve,988,840,45,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,32,per year,2296,362,36,23,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,33,Time,695,96,26,11,8,2,1,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,34,GALAXY MTCATTLIN RESERVE,186,795,127,12,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,35,JIANGXI RESERVE,138,994,68,17,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,36,KELIBER RESERVE,123,1315,36,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,37,NEMASKA LITHIUM WABOUCHI RESERVE,217,945,154,10,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,38,PILBARA MINERALS RESERVES,200,1047,147,14,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,39,TALISON GREENBUSHES RESERVE,202,746,135,11,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,40,MINERAL RESOURCES WODGINA RESERVE,208,851,189,14,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,41,ALLIANCE MINERAL BALD HILL RESERVE,221,1151,162,7,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,42,ALTURA MINING RESERVE,209,1210,141,9,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,43,CATL LA CORNE RESERVE,170,892,136,10,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,44,BIKITA MINERALS RESERVE,173,1104,153,18,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,45,total reserve,505,781,39,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,46,39,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,47,34,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,48,40,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,49,43,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,50,37,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,51,35,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,52,38,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,53,44,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,54,41,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,55,42,45,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,56,Remaining Reserve,556,703,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,57,45,56,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+12,58,48,706,706,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,59,61,58,4,0,0,22,0,0,0,-1--1--1,,1|(674,706)|
+1,60,61,56,100,0,0,22,0,0,0,-1--1--1,,1|(618,706)|
+11,61,0,646,706,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,62,rock mining,646,725,37,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,63,48,605,941,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,64,66,1,4,0,0,22,0,0,0,-1--1--1,,1|(726,941)|
+1,65,66,63,100,0,0,22,0,0,0,-1--1--1,,1|(648,941)|
+11,66,0,687,941,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,67,processed ore,687,960,45,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,68,62,67,1,0,0,0,0,64,0,-1--1--1,,1|(610,840)|
+1,69,29,66,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,70,per year,999,262,38,25,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,71,2,62,1,0,0,0,0,64,0,-1--1--1,,1|(596,603)|
+10,72,ORE PROCESSING TIME,1046,1086,57,25,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,73,75,19,4,0,0,22,0,0,0,-1--1--1,,1|(965,961)|
+1,74,75,1,100,0,0,22,0,0,0,-1--1--1,,1|(886,961)|
+11,75,0,925,961,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,76,to refinery,925,980,33,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,77,72,76,1,0,0,0,0,64,0,-1--1--1,,1|(938,1035)|
+1,78,1,76,1,0,0,0,0,64,0,-1--1--1,,1|(848,1003)|
+10,79,Processing Capacity,1713,927,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+12,80,48,1936,931,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,81,83,79,4,0,0,22,0,0,0,-1--1--1,,1|(1792,931)|
+1,82,83,80,100,0,0,22,0,0,0,-1--1--1,,1|(1885,931)|
+11,83,0,1838,931,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,84,Processing capacity growth,1838,949,54,19,40,131,0,0,-1,0,0,0,0,0,0,0,0,0
+10,85,INIT PROCESSING CAPACITY,1379,1134,85,30,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,86,TIME TO BUILD REFIN CAPA,1888,1110,59,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,87,process capacity to add,1753,1060,62,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,88,targeted process capacity,1662,1160,53,19,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,89,86,87,1,0,0,0,0,64,0,-1--1--1,,1|(1862,1054)|
+10,90,Observe Continuous Demand Growth,1731,732,64,24,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,91,48,1559,728,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,92,94,90,4,0,0,22,0,0,0,-1--1--1,,1|(1645,728)|
+1,93,94,91,100,0,0,22,0,0,0,-1--1--1,,1|(1590,728)|
+11,94,0,1618,728,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,95,counting 2,1618,747,45,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,96,48,1912,727,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,97,99,96,4,0,0,22,0,0,0,-1--1--1,,1|(1866,727)|
+1,98,99,90,100,0,0,22,0,0,0,-1--1--1,,1|(1806,727)|
+11,99,0,1824,727,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,100,resetting 2,1824,746,45,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,101,90,100,1,0,0,0,0,64,0,-1--1--1,,1|(1795,779)|
+1,102,95,100,1,0,0,0,0,64,0,-1--1--1,,1|(1765,812)|
+10,103,TIME STEP,1826,565,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,104,103,100,1,0,0,0,0,64,0,-1--1--1,,1|(1827,721)|
+1,105,87,84,1,0,0,0,0,64,0,-1--1--1,,1|(1784,1001)|
+1,106,79,87,1,0,0,0,0,64,0,-1--1--1,,1|(1714,1001)|
+1,107,88,87,1,0,0,0,0,64,0,-1--1--1,,1|(1738,1126)|
+1,108,79,88,1,0,0,0,0,64,0,-1--1--1,,1|(1624,1071)|
+10,109,Observe Continuous Demand Growth,1660,1338,105,18,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,110,109,88,1,0,0,0,0,64,0,-1--1--1,,1|(1617,1244)|
+1,111,85,79,1,0,0,0,0,64,1,-1--1--1,,1|(1621,957)|
+10,112,converted quantity comparison,1493,856,105,14,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,113,79,112,1,0,0,0,0,64,0,-1--1--1,,1|(1592,895)|
+10,114,demand growth rate,1816,1298,55,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,115,REFINING CAPA BUFFER,1526,1087,57,21,8,131,0,0,-1,0,0,0,0,0,0,0,0,0
+1,116,115,88,1,0,0,0,0,64,0,-1--1--1,,1|(1564,1144)|
+1,117,72,24,1,0,0,0,0,64,0,-1--1--1,,1|(1153,1042)|
+1,118,79,24,1,0,0,0,0,64,0,-1--1--1,,1|(1445,964)|
+10,119,tentative mining quantity,844,775,49,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,120,30,119,1,0,0,0,0,64,0,-1--1--1,,1|(881,673)|
+1,121,31,119,1,0,0,0,0,64,0,-1--1--1,,1|(952,783)|
+1,122,29,119,1,0,0,0,0,64,0,-1--1--1,,1|(816,836)|
+1,123,119,62,1,0,0,0,0,64,0,-1--1--1,,1|(739,723)|
+10,124,tentative mining quantity,510,1048,54,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,125,19,112,1,0,0,0,0,64,0,-1--1--1,,1|(1252,893)|
+1,126,72,112,1,0,0,0,0,64,0,-1--1--1,,1|(1292,1023)|
+10,127,per year,2127,1152,38,20,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,128,CHEMICAL RECOVERY RATE,1252,811,71,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,129,128,24,1,0,0,0,0,64,0,-1--1--1,,1|(1178,885)|
+10,130,Refined Li Inventory,1260,656,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+12,131,48,1083,648,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,132,134,130,4,0,0,22,0,0,0,-1--1--1,,1|(1191,648)|
+1,133,134,131,100,0,0,22,0,0,0,-1--1--1,,1|(1121,648)|
+11,134,0,1156,648,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,135,refining,1156,667,24,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,136,48,1424,654,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,137,139,136,4,0,0,22,0,0,0,-1--1--1,,1|(1388,654)|
+1,138,139,130,100,0,0,22,0,0,0,-1--1--1,,1|(1325,654)|
+11,139,0,1357,654,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,140,li from ore,1357,678,58,16,40,131,0,0,-1,0,0,0,0,0,0,0,0,0
+1,141,24,135,1,0,0,0,0,64,0,-1--1--1,,1|(1120,831)|
+10,142,SHIPPING TIME,1338,551,58,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,143,142,140,1,0,0,0,0,64,0,-1--1--1,,1|(1324,610)|
+1,144,130,140,1,0,0,0,0,64,0,-1--1--1,,1|(1307,711)|
+1,145,30,135,1,0,0,0,0,64,0,-1--1--1,,1|(1010,581)|
+10,146,desired production,257,176,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,147,13,11,1,0,0,0,0,64,0,-1--1--1,,1|(427,232)|
+1,148,2,11,1,0,0,0,0,64,0,-1--1--1,,1|(463,357)|
+10,149,desired production,1437,1241,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,150,potential production,1568,339,80,23,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,151,Processing Capacity,1404,380,40,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,152,151,150,1,0,0,0,0,64,0,-1--1--1,,1|(1450,324)|
+10,153,Brine Processing Capacity,1629,417,58,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,154,153,150,1,0,0,0,0,64,0,-1--1--1,,1|(1625,346)|
+10,155,Installed Geo Li Conversion Capa,1628,179,61,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,156,155,150,1,0,0,0,0,64,0,-1--1--1,,1|(1513,250)|
+10,157,per year,1212,743,36,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,158,per year,758,1063,36,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,159,Price,1113,383,27,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,160,158,130,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+10,161,supply demand ratio,1594,623,53,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,162,161,95,1,0,0,0,0,64,0,-1--1--1,,1|(1596,639)|
+10,163,Observe Continuous Demand Growth,603,151,70,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,164,163,11,1,0,0,0,0,64,0,-1--1--1,,1|(491,214)|
+10,165,per year,162,45,36,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,166,165,11,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,167,9,11,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,168,supply demand ratio,1485,772,53,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Charts
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|96,96,90,0
+12,1,0,277,294,227,170,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+Price,Graph
+12,2,0,762,276,243,200,3,188,0,0,1,0,0,0,0,0,0,0,0,0
+supdmd
+10,3,UNIT OPEX,795,559,52,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+12,4,0,1246,-126,232,172,3,188,0,0,1,0,0,0,0,0,0,0,0,0
+Potential_Li_production
+12,5,0,162,1097,80,20,3,124,0,0,0,0,0,0,0,0,0,0,0,0
+,1,2,1
+12,6,0,168,1056,53,19,8,7,0,0,-1,0,0,0,0,0,0,0,0,0
+1 for NPS, 2 for EV30
+12,7,0,351,1095,80,20,3,124,0,0,0,0,0,0,0,0,0,0,0,0
+"GEOTHERMAL ON?",0,1,1
+12,8,0,353,1046,83,28,8,7,0,0,-1,0,0,0,0,0,0,0,0,0
+Considering Li from Geothermal (1 for YES, 0 for NO)
+12,9,0,765,-161,229,209,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+total supply,Graph
+12,10,0,286,-166,227,208,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+li from geo,Graph
+12,11,0,1257,264,234,211,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+brine li to be sold,Graph
+12,12,0,1744,-127,238,171,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+li from ore,Graph
+10,13,TIME TO ADJUST PRICE,920,532,60,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+12,14,0,1744,263,239,208,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+supply demand ratio,Graph
+12,15,0,244,1194,79,28,8,7,0,3,-1,0,0,0,255-0-0,0-0-0,|||255-0-0,0,0,0,0,0,0
+Capacity for Geothermal production has been significantly raised
+10,16,TIME TO CORRECT BACKLOG,815,717,45,28,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,17,TIME TO AVERAGE ORDERS,930,662,78,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,18,DMD ELASTICITY,924,577,52,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+12,19,0,240,845,179,340,3,188,0,0,2,0,0,0,0,0,0,0,0,0
+supply demand ratio,Causes Strip
+10,20,STANDARD BACKLOG TIME,931,618,67,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,21,SHIPPING TIME,933,767,43,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,22,TIME TO BUILD MINING CAPA,1324,602,64,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,23,TIME TO BUILD REFIN CAPA,1454,520,64,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+12,24,0,662,968,171,445,8,15,0,0,2,0,0,0,0,0,0,0,0,0
+Backlog,Causes Strip
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored
+*Geothermal
+$192-192-192,0,Times New Roman|12||0-0-0|0-0-0|0-0-255|-1--1--1|-1--1--1|96,96,70,0
+10,1,IMPERIAL LI RESERVE,474,771,48,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,2,IMPERIAL GEOTHERMAL CAPACITY,437,326,74,28,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,3,AVE Q PER MW PER YR,443,429,59,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,4,ave q of imperial per yr,607,375,46,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,5,2,4,1,0,0,0,0,64,0,-1--1--1,,1|(582,310)|
+1,6,3,4,1,0,0,0,0,64,0,-1--1--1,,1|(539,426)|
+10,7,LI CONCENTRATING CAPACITY MODULE,769,582,80,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,8,CAPEX,755,195,53,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,9,UNIT OPEX,1640,957,62,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,10,Remaining Imperial Li Reserve,737,794,64,24,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,11,AVE IMPERIAL LI CONCENTRATION,511,556,71,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,12,actual capex,906,298,40,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,13,Year of New Investment,1131,291,70,30,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,14,48,972,291,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,15,17,13,4,0,0,22,0,0,0,-1--1--1,,1|(1044,291)|
+1,16,17,14,100,0,0,22,0,0,0,-1--1--1,,1|(998,291)|
+11,17,0,1021,291,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,18,tracking,1021,310,26,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,19,48,1366,295,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,20,22,19,4,0,0,22,0,0,0,-1--1--1,,1|(1320,295)|
+1,21,22,13,100,0,0,22,0,0,0,-1--1--1,,1|(1236,295)|
+11,22,0,1278,295,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,23,resetting year,1278,314,42,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,24,13,12,1,0,0,0,0,64,0,-1--1--1,,1|(1020,124)|
+1,25,8,12,1,0,0,0,0,64,0,-1--1--1,,1|(822,233)|
+10,26,Time,841,375,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,27,26,12,1,0,0,0,0,64,0,-1--1--1,,1|(903,348)|
+10,28,Installed Geo Li Concentrating Capa,1107,447,69,20,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,29,48,916,445,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,30,32,28,4,0,0,22,0,0,0,-1--1--1,,1|(1013,445)|
+1,31,32,29,100,0,0,22,0,0,0,-1--1--1,,1|(951,445)|
+11,32,0,982,445,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,33,adding capacity,982,464,49,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,34,13,33,1,0,0,0,0,64,0,-1--1--1,,1|(1067,392)|
+1,35,26,33,1,0,0,0,0,64,0,-1--1--1,,1|(857,431)|
+10,36,years of operation,972,636,57,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,37,Time,868,730,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,38,37,36,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,39,FAST RAMP UP CURVE,1226,580,58,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,40,production capa,1118,678,51,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,41,39,40,1,0,0,0,0,64,0,-1--1--1,,1|(1201,650)|
+1,42,36,40,1,0,0,0,0,64,0,-1--1--1,,1|(1027,665)|
+1,43,28,40,1,0,0,0,0,64,0,-1--1--1,,1|(1149,568)|
+10,44,ave li amount extracted per yr,673,465,51,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,45,4,44,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,46,11,44,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,47,Installed Geo Li Conversion Capa,1479,442,59,20,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+12,48,48,1313,438,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,49,51,47,4,0,0,22,0,0,0,-1--1--1,,1|(1398,438)|
+1,50,51,48,100,0,0,22,0,0,0,-1--1--1,,1|(1344,438)|
+11,51,0,1371,438,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,52,adding geo conversion capa,1371,465,52,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,53,TIME TO BUILD MINING CAPA,1802,326,64,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,54,13,52,1,0,0,0,0,64,0,-1--1--1,,1|(1219,411)|
+10,55,LI CONVERSION CAPA MODULE,1563,559,64,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,56,TIME STEP,972,380,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,57,56,33,1,0,0,0,0,64,0,-1--1--1,,1|(954,413)|
+1,58,55,157,1,0,0,0,0,64,0,-1--1--1,,1|(1450,541)|
+10,59,Li in Geo Ion Exchange,1023,798,67,21,3,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,60,Geo Li Inventory,1591,803,40,20,3,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,61,63,59,4,0,0,22,0,0,0,-1--1--1,,1|(920,797)|
+1,62,63,10,100,0,0,22,0,0,0,-1--1--1,,1|(836,797)|
+11,63,0,878,797,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,64,geo extraction,878,816,45,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,65,44,64,1,0,0,0,0,64,0,-1--1--1,,1|(698,651)|
+1,66,40,64,1,0,0,0,0,64,0,-1--1--1,,1|(986,724)|
+1,67,1,10,0,0,0,0,0,64,1,-1--1--1,,1|(0,0)|
+12,68,48,1294,798,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,69,71,68,4,0,0,22,0,0,0,-1--1--1,,1|(1252,798)|
+1,70,71,59,100,0,0,22,0,0,0,-1--1--1,,1|(1149,798)|
+11,71,0,1214,798,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,72,to geo conversion,1214,817,56,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,73,48,1012,971,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,74,76,73,4,0,0,22,0,0,0,-1--1--1,,1|(1012,927)|
+1,75,76,59,100,0,0,22,0,0,0,-1--1--1,,1|(1012,849)|
+11,76,0,1012,886,8,6,33,3,0,0,4,0,0,0,0,0,0,0,0,0
+10,77,lost in geo ion exchange,1064,886,44,19,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,78,ION EXCHANGE RECOVERY,1159,979,67,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,79,78,72,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,80,78,77,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,81,per year,1153,1066,44,12,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,82,81,72,1,0,0,0,0,64,0,-1--1--1,,1|(1254,993)|
+1,83,81,77,1,0,0,0,0,64,0,-1--1--1,,1|(1050,978)|
+1,84,59,77,1,0,0,0,0,64,0,-1--1--1,,1|(950,870)|
+1,85,59,72,1,0,0,0,0,64,0,-1--1--1,,1|(1122,719)|
+12,86,48,1407,802,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,87,89,60,4,0,0,22,0,0,0,-1--1--1,,1|(1520,802)|
+1,88,89,86,100,0,0,22,0,0,0,-1--1--1,,1|(1447,802)|
+11,89,0,1484,802,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,90,from conversion,1484,821,51,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+12,91,48,1806,804,10,8,0,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,92,94,91,4,0,0,22,0,0,0,-1--1--1,,1|(1757,804)|
+1,93,94,60,100,0,0,22,0,0,0,-1--1--1,,1|(1669,804)|
+11,94,0,1713,804,6,8,34,3,0,0,1,0,0,0,0,0,0,0,0,0
+10,95,li from geo,1713,823,40,11,40,3,0,0,-1,0,0,0,0,0,0,0,0,0
+10,96,SHIPPING TIME,1861,678,43,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,97,CONVERSION RECOVERY RATE,1460,926,71,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,98,97,90,1,0,0,0,0,64,0,-1--1--1,,1|(1497,869)|
+1,99,72,90,1,0,0,0,0,64,0,-1--1--1,,1|(1355,863)|
+1,100,60,95,1,0,0,0,0,64,0,-1--1--1,,1|(1657,853)|
+1,101,96,95,1,0,0,0,0,64,0,-1--1--1,,1|(1805,774)|
+10,102,Price,1881,786,27,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,103,annual profit,1819,863,50,18,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,104,95,103,1,0,0,0,0,64,0,-1--1--1,,1|(1732,853)|
+1,105,9,103,1,0,0,0,0,64,0,-1--1--1,,1|(1713,902)|
+1,106,102,103,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,107,actual capex,2057,1201,49,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,108,"start new investment?",2018,861,37,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,109,Year of New Investment,2173,1019,47,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,110,109,108,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,111,Time,1965,772,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,112,111,108,1,0,0,0,0,64,0,-1--1--1,,1|(1962,817)|
+10,113,time to start new investment,2049,742,53,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,114,108,113,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,115,TIME TO BUILD REFIN CAPA,2246,715,64,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,116,115,113,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,117,time to start new investment,1011,184,58,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,118,117,18,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,119,56,18,1,0,0,0,0,64,0,-1--1--1,,1|(968,341)|
+10,120,"start new investment?",1309,193,42,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,121,120,23,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,122,13,23,1,0,0,0,0,64,0,-1--1--1,,1|(1224,340)|
+10,123,Time,1890,665,26,11,8,2,1,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,124,123,113,0,1,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,125,per year,1960,1366,39,15,8,130,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,126,Installed Geo Li Concentrating Capa,2179,909,69,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,127,ave li amount extracted per yr,2200,805,56,19,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,128,126,108,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+1,129,127,108,0,0,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,130,Time,1463,617,26,11,8,2,1,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,131,130,52,0,1,0,0,0,64,0,-1--1--1,,1|(0,0)|
+10,132,TIME STEP,1814,355,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,133,47,95,1,0,0,0,0,64,0,-1--1--1,,1|(1700,605)|
+10,134,oneyear,1053,559,26,11,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,135,134,40,1,0,0,0,0,64,0,-1--1--1,,1|(1059,615)|
+10,136,TIME STEP,1435,331,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,137,136,23,1,0,0,0,0,64,0,-1--1--1,,1|(1331,361)|
+10,138,one year,1918,240,37,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,139,INITIAL TIME,2081,689,60,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,140,Time,1812,385,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,141,Time,2034,1368,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,142,136,52,1,0,0,0,0,64,0,-1--1--1,,1|(1378,403)|
+1,143,12,151,1,0,0,0,0,64,0,-1--1--1,,1|(779,329)|
+10,144,"Table for Capex/ConcCap Module",666,244,64,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,145,Concentration Cap built,884,530,45,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,146,145,33,1,0,0,0,0,64,0,-1--1--1,,1|(955,510)|
+1,147,144,151,1,0,0,0,0,64,0,-1--1--1,,1|(663,316)|
+10,148,tonperyear,856,650,34,18,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+10,149,dollar,554,188,19,11,8,3,0,0,-1,0,0,0,0,0,0,0,0,0
+1,150,149,151,1,0,0,0,0,64,0,-1--1--1,,1|(584,296)|
+10,151,Concentration Cap per dollar,757,397,61,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,152,151,145,1,0,0,0,0,64,0,-1--1--1,,1|(787,472)|
+1,153,7,145,1,0,0,0,0,64,0,-1--1--1,,1|(805,537)|
+10,154,actual capex,1581,611,49,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,155,Conversion Cap per dollar,1452,726,53,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,156,"Table for Capex/ConvCap Module",1300,735,81,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+10,157,Conversion Cap built,1366,606,53,19,8,3,0,0,0,0,0,0,0,0,0,0,0,0
+1,158,156,155,1,0,0,0,0,64,0,-1--1--1,,1|(1386,760)|
+1,159,154,155,1,0,0,0,0,64,0,-1--1--1,,1|(1540,672)|
+1,160,155,157,1,0,0,0,0,64,0,-1--1--1,,1|(1458,650)|
+1,161,157,52,1,0,0,0,0,64,0,-1--1--1,,1|(1332,552)|
+10,162,dollar,1661,717,28,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,163,162,155,1,0,0,0,0,64,0,-1--1--1,,1|(1574,730)|
+10,164,Net Flow,1886,1082,39,22,8,131,0,0,0,0,0,0,0,0,0,0,0,0
+1,165,107,164,1,0,0,0,0,64,0,-1--1--1,,1|(1987,1121)|
+1,166,103,164,1,0,0,0,0,64,0,-1--1--1,,1|(1830,1029)|
+10,167,Time,1327,1265,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,168,INITIAL TIME,1342,1332,60,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,169,164,108,1,0,0,0,0,64,0,-1--1--1,,1|(2016,1001)|
+10,170,Time,1756,1286,26,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+10,171,TIME STEP,1906,1280,50,11,8,2,0,3,-1,0,0,0,128-128-128,0-0-0,|||128-128-128,0,0,0,0,0,0
+1,172,171,164,1,0,0,0,0,64,0,-1--1--1,,1|(1907,1175)|
+///---\\\
+:GRAPH supply-demand
+:TITLE supply-demand
+:SCALE
+:VAR posted demand
+:DATASET 
+:LINE-WIDTH 1
+:VAR adjusted supply
+:DATASET 
+:LINE-WIDTH 1
+:VAR desired production
+:DATASET 
+:LINE-WIDTH 1
+
+:GRAPH price
+:TITLE price
+:X-AXIS time
+:SCALE
+:VAR price
+:DATASET 
+
+:GRAPH Potential_Li_production
+:TITLE Potential Li production
+:SCALE
+:VAR potential production
+:DATASET 
+:LINE-WIDTH 1
+:SCALE
+:VAR brine li to be sold
+:DATASET 
+:LINE-WIDTH 1
+
+:GRAPH Total_Li_supply
+:TITLE Total Li supply
+:SCALE
+:VAR total supply
+:DATASET 
+
+:GRAPH Li_from_brine
+:TITLE Li from brine
+:SCALE
+:VAR brine li to be sold
+:DATASET 
+
+:GRAPH Li_from_ore
+:TITLE Li from ore
+:SCALE
+:VAR li from ore
+:DATASET 
+
+:GRAPH Li_from_geothermal
+:TITLE Li from geothermal
+:SCALE
+:VAR li from geo
+:DATASET 
+
+:GRAPH Demand
+:TITLE Total Li Demand
+:SCALE
+:VAR posted demand
+:DATASET 
+
+:GRAPH Annual_Profit
+:TITLE Annual Profit
+:SCALE
+:VAR annual profit
+:DATASET 
+
+:GRAPH supdmd
+:TITLE Lithium Supply-demand
+:SCALE
+:VAR adjusted supply
+:DATASET 
+:VAR posted demand
+:DATASET 
+:L<%^E!@
+1:lion.vdfx
+4:Time
+5:per year
+9:lion
+19:60,1
+24:2005
+25:2050
+26:2050
+22:$,Dollar,Dollars,$s
+22:C,Cels,cels
+22:Day,Days,day
+22:Dmnl,dmnl
+22:gram,g,grams
+22:Hour,Hours,hr
+22:liter,liters,l
+22:m,meter
+22:Month,Months,mo
+22:Person,People,Persons
+22:Unit,Units
+22:Week,Weeks,wk,week,weeks
+22:Year,Years,yr,Yr
+23:0
+18:LISA_Model.vsc
+20:LISA_Model.lst
+15:0,0,0,0,0,0
+27:2,
+34:0,
+42:0
+72:0
+73:0
+35:Date
+36:YYYY-MM-DD
+37:2005
+38:1
+39:1
+40:0
+41:0
+95:0
+96:0
+97:0
+77:0
+78:0
+102:1
+93:0
+94:0
+92:0
+91:0
+90:0
+87:0
+75:
+43:
+103:8,8,8,3,8
+105:0,0,0,0,0,0,0,0,0,0
+104:Vensim Sans|12||0-0-0|0-0-0|-1--1--1|0-0-255|192-192-192|-1--1--1
